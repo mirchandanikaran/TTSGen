@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Build and Dist
+build/
+dist/
+*.spec
+
+# Application Data
+*.wav
+*.mp3
+
+# Large Model Files (Recommended to download separately)
+kokoro-v1.0.onnx
+voices-v1.0.bin
+
+# macOS
+.DS_Store
