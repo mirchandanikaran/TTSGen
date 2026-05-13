@@ -4,6 +4,8 @@ import argparse
 from kokoro_onnx import Kokoro
 import soundfile as sf
 import numpy as np
+import re
+from scipy.signal import resample
 
 class TTSManager:
     def __init__(self, model_path="kokoro-v1.0.onnx", voices_path="voices-v1.0.bin"):
@@ -35,11 +37,11 @@ class TTSManager:
                 self.g2p = None
         return self.g2p
 
-    def generate(self, text, voice="af_sky", speed=1.1, output_file="output.wav", blend_voice=None, blend_ratio=0.5):
+    def generate(self, text, voice="af_sky", speed=1.1, output_file="output.wav", blend_voice=None, blend_ratio=0.5, pitch=1.0):
         kokoro = self.load_model()
         g2p = self.load_g2p()
         
-        print(f"Generating audio with voice: {voice}, speed: {speed}")
+        print(f"Generating audio with voice: {voice}, speed: {speed}, pitch: {pitch}")
         if blend_voice:
             print(f"Blending with {blend_voice} at ratio {blend_ratio}")
         
@@ -52,44 +54,61 @@ class TTSManager:
         else:
             voice_data = voice
 
-        # Handle custom breaks '<>'
-        segments = text.split("<>")
+        # Handle custom breaks: '<>' for 1s, '<' for 0.5s
+        # We use regex to find both, but we need to know which one was found
+        # Pattern captures the tag so we can check it
+        parts = re.split(r"(<>|<)", text)
         full_audio = []
         sample_rate = 24000 # Default for Kokoro
 
-        for i, segment in enumerate(segments):
-            segment = segment.strip()
-            if segment:
-                if g2p:
-                    phonemes, _ = g2p(segment)
-                    samples, sr = kokoro.create(
-                        phonemes, 
-                        voice=voice_data, 
-                        speed=speed, 
-                        lang="en-us",
-                        is_phonemes=True
-                    )
-                else:
-                    samples, sr = kokoro.create(
-                        segment, 
-                        voice=voice_data, 
-                        speed=speed, 
-                        lang="en-us"
-                    )
-                
-                sample_rate = sr
-                full_audio.append(samples)
-            
-            # Add 1 second of silence if not the last segment (where a '<>' was detected)
-            if i < len(segments) - 1:
-                silence = np.zeros(int(sample_rate * 1.0)) # 1 second of silence
+        for i, part in enumerate(parts):
+            # If the part is a tag, we add silence in the next iteration or handle it here
+            if part == "<>":
+                silence = np.zeros(int(sample_rate * 1.0))
                 full_audio.append(silence)
+                continue
+            elif part == "<":
+                silence = np.zeros(int(sample_rate * 0.5))
+                full_audio.append(silence)
+                continue
+            
+            # It's a text segment
+            segment = part.strip()
+            if not segment:
+                continue
+                
+            if g2p:
+                phonemes, _ = g2p(segment)
+                samples, sr = kokoro.create(
+                    phonemes, 
+                    voice=voice_data, 
+                    speed=speed, 
+                    lang="en-us",
+                    is_phonemes=True
+                )
+            else:
+                samples, sr = kokoro.create(
+                    segment, 
+                    voice=voice_data, 
+                    speed=speed, 
+                    lang="en-us"
+                )
+            sample_rate = sr
+            full_audio.append(samples)
 
         if not full_audio:
             return None
 
         # Concatenate all audio segments
         final_samples = np.concatenate(full_audio)
+
+        # Apply Pitch Shift if requested (via resampling)
+        if pitch != 1.0:
+            # Resampling changes both pitch and duration (like a vinyl record)
+            # This is the most natural sounding "modulation" without artifacts
+            num_samples = int(len(final_samples) / pitch)
+            final_samples = resample(final_samples, num_samples)
+
         sf.write(output_file, final_samples, sample_rate)
         return output_file
 

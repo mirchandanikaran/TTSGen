@@ -31,8 +31,16 @@ class KokoroGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Kokoro TTS - YouTube Shorts Generator")
-        self.geometry("700x550")
+        self.title("Kokoro TTS - YouTube Shorts Pro")
+        self.geometry("1100x750")
+        
+        # Center window
+        self.update_idletasks()
+        width = self.winfo_width()
+        height = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f'{width}x{height}+{x}+{y}')
         
         # Set appearance
         ctk.set_appearance_mode("dark")
@@ -75,18 +83,33 @@ class KokoroGUI(ctk.CTk):
         self.row2_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
         self.row2_frame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="ew")
 
-        # Speed Label and Entry/Slider
+        # Speed Label and Spinbox
         self.speed_label = ctk.CTkLabel(self.row2_frame, text="Speed:")
-        self.speed_label.grid(row=0, column=0, padx=10, pady=10)
+        self.speed_label.grid(row=0, column=0, padx=(10, 5), pady=10)
         
-        self.speed_slider = ctk.CTkSlider(self.row2_frame, from_=0.2, to=3.0, number_of_steps=28, command=self.sync_speed_entry)
-        self.speed_slider.grid(row=0, column=1, padx=10, pady=10)
+        self.speed_slider = ctk.CTkSlider(self.row2_frame, from_=0.2, to=3.0, number_of_steps=28, width=150, command=self.sync_speed_entry)
+        self.speed_slider.grid(row=0, column=1, padx=5, pady=10)
         self.speed_slider.set(1.15)
 
-        self.speed_entry = ctk.CTkEntry(self.row2_frame, width=60)
-        self.speed_entry.grid(row=0, column=2, padx=10, pady=10)
+        # Custom Spinbox Frame
+        self.spin_frame = ctk.CTkFrame(self.row2_frame, fg_color="transparent")
+        self.spin_frame.grid(row=0, column=2, padx=5, pady=10)
+
+        self.speed_entry = ctk.CTkEntry(self.spin_frame, width=60)
+        self.speed_entry.grid(row=0, column=0, padx=(0, 2))
         self.speed_entry.insert(0, "1.15")
         self.speed_entry.bind("<Return>", self.sync_speed_slider)
+
+        self.arrow_frame = ctk.CTkFrame(self.spin_frame, fg_color="transparent")
+        self.arrow_frame.grid(row=0, column=1)
+
+        self.up_button = ctk.CTkButton(self.arrow_frame, text="▲", width=20, height=14, font=ctk.CTkFont(size=8), 
+                                      command=lambda: self.adjust_speed(0.05))
+        self.up_button.grid(row=0, column=0, pady=(0, 1))
+        
+        self.down_button = ctk.CTkButton(self.arrow_frame, text="▼", width=20, height=14, font=ctk.CTkFont(size=8), 
+                                        command=lambda: self.adjust_speed(-0.05))
+        self.down_button.grid(row=1, column=0, pady=(1, 0))
 
         # Modulation (Blend) Control
         self.blend_label = ctk.CTkLabel(self.row2_frame, text="Modulation (Blend):")
@@ -100,22 +123,63 @@ class KokoroGUI(ctk.CTk):
         self.blend_slider.grid(row=0, column=5, padx=10, pady=10)
         self.blend_slider.set(0.5)
 
+        # --- Third Row: Pitch Control ---
+        self.row3_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
+        self.row3_frame.grid(row=2, column=0, columnspan=8, padx=5, pady=5, sticky="ew")
+
+        self.pitch_label = ctk.CTkLabel(self.row3_frame, text="Pitch Control:")
+        self.pitch_label.grid(row=0, column=0, padx=(10, 5), pady=10)
+
+        self.pitch_slider = ctk.CTkSlider(self.row3_frame, from_=0.5, to=1.5, number_of_steps=20, width=150, command=self.sync_pitch_entry)
+        self.pitch_slider.grid(row=0, column=1, padx=5, pady=10)
+        self.pitch_slider.set(1.0)
+
+        # Pitch Spinbox Frame
+        self.p_spin_frame = ctk.CTkFrame(self.row3_frame, fg_color="transparent")
+        self.p_spin_frame.grid(row=0, column=2, padx=5, pady=10)
+
+        self.pitch_entry = ctk.CTkEntry(self.p_spin_frame, width=60)
+        self.pitch_entry.grid(row=0, column=0, padx=(0, 2))
+        self.pitch_entry.insert(0, "1.00")
+        self.pitch_entry.bind("<Return>", self.sync_pitch_slider)
+
+        self.p_arrow_frame = ctk.CTkFrame(self.p_spin_frame, fg_color="transparent")
+        self.p_arrow_frame.grid(row=0, column=1)
+
+        self.p_up_button = ctk.CTkButton(self.p_arrow_frame, text="▲", width=20, height=14, font=ctk.CTkFont(size=8), 
+                                        command=lambda: self.adjust_pitch(0.05))
+        self.p_up_button.grid(row=0, column=0, pady=(0, 1))
+        
+        self.p_down_button = ctk.CTkButton(self.p_arrow_frame, text="▼", width=20, height=14, font=ctk.CTkFont(size=8), 
+                                          command=lambda: self.adjust_pitch(-0.05))
+        self.p_down_button.grid(row=1, column=0, pady=(1, 0))
+
         # Modulation Presets
         self.preset_label = ctk.CTkLabel(self.row2_frame, text="Quick Presets:")
         self.preset_label.grid(row=0, column=6, padx=10, pady=10)
 
         self.mod_presets = {
             "Custom": None,
-            "Deep & Authoritative": ("am_michael", "am_adam", 0.6, 1.0),
-            "Smart & Youthful": ("am_puck", "am_liam", 0.7, 1.1),
-            "Crisp & Clear": ("am_echo", "af_nova", 0.8, 1.15),
-            "Professional Soft": ("af_sky", "af_sarah", 0.5, 1.0)
+            "Deep Narrator (Engaging)": ("am_michael", "am_adam", 0.6, 0.85, 1.15),
+            "Deep & Authoritative": ("am_michael", "am_adam", 0.6, 1.0, 1.0),
+            "Excited Pro Artist": ("am_puck", "af_sky", 0.65, 1.25, 1.0),
+            "Smart & Youthful": ("am_puck", "am_liam", 0.7, 1.1, 1.0),
+            "Crisp & Clear": ("am_echo", "af_nova", 0.8, 1.15, 1.0),
+            "Professional Soft": ("af_sky", "af_sarah", 0.5, 1.0, 1.0)
         }
 
         self.mod_preset_dropdown = ctk.CTkComboBox(self.row2_frame, values=list(self.mod_presets.keys()), 
-                                                 width=150, command=self.apply_mod_preset)
+                                                 width=200, command=self.apply_mod_preset)
         self.mod_preset_dropdown.grid(row=0, column=7, padx=10, pady=10)
-        self.mod_preset_dropdown.set("Custom")
+        self.mod_preset_dropdown.set("Deep Narrator (Engaging)")
+
+        # Gender Switch
+        self.gender_button = ctk.CTkButton(self.row3_frame, text="🔄 Swap Gender (M/F)", width=150, 
+                                          fg_color="#34495e", hover_color="#5d6d7e", command=self.swap_gender)
+        self.gender_button.grid(row=0, column=3, padx=20, pady=10)
+
+        # Apply the default preset immediately
+        self.after(100, lambda: self.apply_mod_preset("Deep Narrator (Engaging)"))
 
         # Progress and Status
         self.progress_bar = ctk.CTkProgressBar(self)
@@ -126,7 +190,7 @@ class KokoroGUI(ctk.CTk):
         self.status_label.grid(row=4, column=0, padx=20, pady=(0, 5))
 
         # Tips Label
-        self.tips_label = ctk.CTkLabel(self, text="Tip: Use '<>' for a 1-second break, or ',,' for a short pause!", 
+        self.tips_label = ctk.CTkLabel(self, text="Tip: Use '<' for 0.5s break, '<>' for 1s break, or ',,' for a short pause!", 
                                      font=ctk.CTkFont(size=11, slant="italic"), text_color="gray")
         self.tips_label.grid(row=5, column=0, padx=20, pady=(0, 10))
 
@@ -182,10 +246,25 @@ class KokoroGUI(ctk.CTk):
         self.speed_entry.delete(0, "end")
         self.speed_entry.insert(0, f"{value:.2f}")
 
-    def sync_speed_slider(self, event):
+    def sync_speed_slider(self, event=None):
         try:
             val = float(self.speed_entry.get())
+            # Clamp value to slider range
+            val = max(0.2, min(3.0, val))
             self.speed_slider.set(val)
+            # Update entry with cleaned value
+            self.speed_entry.delete(0, "end")
+            self.speed_entry.insert(0, f"{val:.2f}")
+        except ValueError:
+            pass
+
+    def adjust_speed(self, delta):
+        try:
+            current = float(self.speed_entry.get())
+            new_val = max(0.2, min(3.0, current + delta))
+            self.speed_entry.delete(0, "end")
+            self.speed_entry.insert(0, f"{new_val:.2f}")
+            self.speed_slider.set(new_val)
         except ValueError:
             pass
 
@@ -194,7 +273,7 @@ class KokoroGUI(ctk.CTk):
         if not settings:
             return
             
-        v1, v2, ratio, speed = settings
+        v1, v2, ratio, speed, pitch = settings
         
         # Find full names in VOICES
         v1_full = next((v for v in VOICES if v.startswith(v1)), v1)
@@ -206,6 +285,45 @@ class KokoroGUI(ctk.CTk):
         self.speed_slider.set(speed)
         self.speed_entry.delete(0, "end")
         self.speed_entry.insert(0, f"{speed:.2f}")
+        self.pitch_slider.set(pitch)
+        self.pitch_entry.delete(0, "end")
+        self.pitch_entry.insert(0, f"{pitch:.2f}")
+
+    def sync_pitch_entry(self, value):
+        self.pitch_entry.delete(0, "end")
+        self.pitch_entry.insert(0, f"{value:.2f}")
+
+    def sync_pitch_slider(self, event=None):
+        try:
+            val = float(self.pitch_entry.get())
+            val = max(0.5, min(1.5, val))
+            self.pitch_slider.set(val)
+            self.pitch_entry.delete(0, "end")
+            self.pitch_entry.insert(0, f"{val:.2f}")
+        except ValueError:
+            pass
+
+    def adjust_pitch(self, delta):
+        try:
+            current = float(self.pitch_entry.get())
+            new_val = max(0.5, min(1.5, current + delta))
+            self.pitch_entry.delete(0, "end")
+            self.pitch_entry.insert(0, f"{new_val:.2f}")
+            self.pitch_slider.set(new_val)
+        except ValueError:
+            pass
+
+    def swap_gender(self):
+        current_voice = self.voice_dropdown.get()
+        # Simple swap between puck (male) and sky (female)
+        if "am_" in current_voice:
+            # Switch to female
+            target = next((v for v in VOICES if v.startswith("af_sky")), VOICES[1])
+        else:
+            # Switch to male
+            target = next((v for v in VOICES if v.startswith("am_puck")), VOICES[10])
+        
+        self.voice_dropdown.set(target)
 
     def start_generation(self):
         text = self.text_input.get("1.0", "end-1c").strip()
@@ -234,23 +352,29 @@ class KokoroGUI(ctk.CTk):
             blend_voice = blend_full.split(" ")[0]
             blend_ratio = self.blend_slider.get()
 
+        # Handling Pitch
+        try:
+            pitch = float(self.pitch_entry.get())
+        except ValueError:
+            pitch = self.pitch_slider.get()
+
         self.generate_button.configure(state="disabled")
         self.progress_bar.configure(mode="indeterminate")
         self.progress_bar.start()
         self.update_status("Generating audio...", "white")
 
         # Run generation in a separate thread to keep UI responsive
-        thread = threading.Thread(target=self.generate_audio, args=(text, voice_id, speed, blend_voice, blend_ratio))
+        thread = threading.Thread(target=self.generate_audio, args=(text, voice_id, speed, blend_voice, blend_ratio, pitch))
         thread.start()
 
-    def generate_audio(self, text, voice_id, speed, blend_voice=None, blend_ratio=0):
+    def generate_audio(self, text, voice_id, speed, blend_voice=None, blend_ratio=0, pitch=1.0):
         try:
             if self.manager is None:
                 self.manager = TTSManager()
             
             output_file = "output.wav"
             self.manager.generate(text, voice=voice_id, speed=speed, output_file=output_file, 
-                                 blend_voice=blend_voice, blend_ratio=blend_ratio)
+                                 blend_voice=blend_voice, blend_ratio=blend_ratio, pitch=pitch)
             
             self.msg_queue.put(("SUCCESS", f"Success! Saved to {output_file}"))
         except Exception as e:
